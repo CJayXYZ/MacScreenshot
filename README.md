@@ -66,8 +66,8 @@ Requires macOS 14 Sonoma or later, on Apple Silicon or Intel.
 | **⌘ A** (while frozen) | Capture the whole screen instead |
 | **Esc** (while dragging) | Clear the selection and drag again |
 | **Esc** (again) | Back to the live screen, nothing saved |
-| **⌘ ⌥ ⇧ X** | Capture the same area as last time, instantly |
-| **⌃ ⇧ ⌘ X** | Edit the last capture |
+| **⌃ ⇧ ⌘ X** | Capture the same area as last time, instantly |
+| **⌘ ⌥ ⇧ X** | Edit the last capture |
 
 ### Editing
 

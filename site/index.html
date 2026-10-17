@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MacScreenshot: free, fast screenshot tool for Mac (Greenshot / Flameshot alternative)</title>
+<meta name="description" content="MacScreenshot is a free, open-source screenshot tool for macOS. Press ⌘⇧X, the screen freezes, drag a region: it's saved and copied to the clipboard. A simple Greenshot / Flameshot alternative for Mac.">
+<link rel="canonical" href="https://cjay.xyz/MacScreenshot/">
+<link rel="icon" type="image/png" href="favicon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="MacScreenshot: Freeze, select, done.">
+<meta property="og:description" content="A fast, native, free screenshot tool for macOS. The simple Greenshot / Flameshot alternative for Mac.">
+<meta property="og:url" content="https://cjay.xyz/MacScreenshot/">
+<meta property="og:image" content="https://cjay.xyz/MacScreenshot/icon.png">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "MacScreenshot",
+  "operatingSystem": "macOS 14 or later",
+  "applicationCategory": "UtilitiesApplication",
+  "description": "A fast, native, free screenshot tool for macOS. Freeze the screen, drag a region, and it's saved and copied to the clipboard.",
+  "url": "https://cjay.xyz/MacScreenshot/",
+  "downloadUrl": "https://github.com/CJayXYZ/MacScreenshot/releases/latest",
+  "softwareVersion": "1.1.3",
+  "license": "https://opensource.org/licenses/MIT",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "CJay", "url": "https://github.com/CJayXYZ" }
+}
+</script>
+<style>
+  :root {
+    --bg: #fbfbfd; --fg: #1d1d1f; --muted: #6e6e73; --card: #ffffff;
+    --line: #e5e5ea; --accent: #0a66d8; --accent-fg: #ffffff; --code: #f2f2f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111113; --fg: #f5f5f7; --muted: #a1a1a6; --card: #1c1c1f;
+      --line: #2c2c30; --accent: #4c9bff; --accent-fg: #0b0b0c; --code: #232327;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 56px 16px 72px; }
+  header { text-align: center; }
+  header img { width: 112px; height: 112px; }
+  h1 { font-size: 44px; line-height: 1.1; margin: 16px 0 8px; letter-spacing: -0.02em; }
+  .tag { font-size: 22px; font-weight: 600; margin: 0 0 6px; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 11px 22px; border-radius: 999px; text-decoration: none;
+    font-weight: 600; border: 1px solid var(--line); color: var(--fg); background: var(--card);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  h2 { font-size: 26px; margin: 56px 0 14px; letter-spacing: -0.01em; }
+  ul.features { padding: 0; list-style: none; display: grid; gap: 12px; }
+  ul.features li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  pre, code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 15px; }
+  pre { background: var(--code); padding: 14px 16px; border-radius: 10px; overflow-x: auto; }
+  code { background: var(--code); padding: 1px 5px; border-radius: 5px; }
+  pre code { background: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { white-space: nowrap; font-weight: 600; width: 1%; padding-right: 20px; }
+  a { color: var(--accent); }
+  footer { margin-top: 64px; color: var(--muted); font-size: 15px; text-align: center; }
+  @media (max-width: 520px) { h1 { font-size: 34px; } .tag { font-size: 19px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icon.png" alt="MacScreenshot app icon" width="112" height="112">
+    <h1>MacScreenshot</h1>
+    <p class="tag">Freeze, select, done.</p>
+    <p class="sub">A fast, native, free screenshot tool for macOS:<br>the simple Greenshot / Flameshot alternative for Mac.</p>
+    <div class="buttons">
+      <a class="btn primary" href="https://github.com/CJayXYZ/MacScreenshot/releases/latest">Download for Mac</a>
+      <a class="btn" href="https://github.com/CJayXYZ/MacScreenshot">Source on GitHub</a>
+    </div>
+  </header>
+
+  <h2>What it does</h2>
+  <p>Press <b>⌘⇧X</b> and the screen freezes instantly, so menus, tooltips and video frames stay exactly where they were. Drag a region, and it's <b>saved as a file and copied to your clipboard</b> in one go. No editor windows, no clicks in between.</p>
+  <ul class="features">
+    <li><b>Freeze-frame capture.</b> What you see when you press the shortcut is what you get.</li>
+    <li><b>Pixel-precise magnifier.</b> A loupe follows the pointer with exact coordinates and the selection size in pixels.</li>
+    <li><b>Saved and copied every time.</b> Paste straight into Slack, Mail, Figma or a browser.</li>
+    <li><b>Quick edits (⌘⌥⇧X).</b> Crop, arrows, boxes, circles, text and highlights, then save or replace.</li>
+    <li><b>Capture last region (⌃⇧⌘X).</b> Re-shoot the same area instantly, perfect for before/after shots.</li>
+    <li><b>Smart file names, PNG or JPEG, your folder, your shortcuts.</b></li>
+    <li><b>Light.</b> Native Swift, about 12 MB of memory when idle. No Electron, no ads, no tracking, no network access.</li>
+  </ul>
+
+  <h2>Install</h2>
+  <p>With Homebrew:</p>
+  <pre><code>brew install --cask cjayxyz/tap/macscreenshot</code></pre>
+  <p>Or download the zip from the <a href="https://github.com/CJayXYZ/MacScreenshot/releases/latest">latest release</a> and drag <b>MacScreenshot.app</b> into Applications. The build isn't notarized yet, so on first launch open <b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>. Then allow <b>Screen Recording</b> when asked.</p>
+  <p>Requires macOS 14 Sonoma or later, on Apple Silicon or Intel.</p>
+
+  <h2>Shortcuts</h2>
+  <table>
+    <tr><td>⌘ ⇧ X</td><td>Freeze the screen and show the crosshair and magnifier</td></tr>
+    <tr><td>Drag and release</td><td>Save the selection and copy it to the clipboard</td></tr>
+    <tr><td>⌘ A (while frozen)</td><td>Capture the whole screen instead</td></tr>
+    <tr><td>Esc</td><td>Clear the selection; press again to go back with nothing saved</td></tr>
+    <tr><td>⌃ ⇧ ⌘ X</td><td>Capture the same area as last time, instantly</td></tr>
+    <tr><td>⌘ ⌥ ⇧ X</td><td>Edit the last capture</td></tr>
+  </table>
+  <p>All shortcuts can be changed from the menu bar icon → Keyboard Shortcuts….</p>
+
+  <footer>
+    Free and open source under the MIT license · by <a href="https://github.com/CJayXYZ">CJay</a> ·
+    <a href="https://github.com/CJayXYZ/MacScreenshot/issues/new/choose">Feedback</a>
+  </footer>
+</main>
+</body>
+</html>
