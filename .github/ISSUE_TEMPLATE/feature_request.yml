@@ -1,0 +1,16 @@
+name: Feature request
+description: Suggest an idea for MacScreenshot
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: Describe what you're trying to do and why the current app doesn't cover it.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How should it work?
+      description: Shortcuts, menu items, how other apps (Greenshot, Flameshot, CleanShot) do it…

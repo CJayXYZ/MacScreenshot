@@ -1,0 +1,445 @@
+import AppKit
+import Carbon.HIToolbox
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ShortcutStore {
+    private var statusItem: NSStatusItem!
+    private var hotKeys: [ShortcutAction: HotKey] = [:]
+    private let capturer = Capturer()
+    private var overlay: OverlayController?
+    private var busy = false
+    private lazy var help = HelpWindowController { [weak self] in self?.popUpMenuAtMouse() }
+    private lazy var shortcutsWindow = ShortcutsWindowController(store: self)
+    private var captureItem: NSMenuItem!
+
+    private var lastRegionItem: NSMenuItem!
+    private var pngItem: NSMenuItem!
+    private var jpegItem: NSMenuItem!
+    private var qualitySlider: NSSlider!
+    private var qualityLabel: NSTextField!
+    private var shutterItem: NSMenuItem!
+    private var volumeSlider: NSSlider!
+    private var volumeLabel: NSTextField!
+    private var folderItem: NSMenuItem!
+    private var resetFolderItem: NSMenuItem!
+    private var loginItem: NSMenuItem!
+    private var memoryItem: NSMenuItem!
+
+    private lazy var shutter: NSSound? =
+        NSSound(contentsOfFile: "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/Screen Capture.aif",
+                byReference: true) ?? NSSound(named: "Tink")
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        guard LaunchManager.bootstrap() else { exit(0) }
+
+        buildMenu()
+        registerHotKeys()
+
+        // Opening the app again while it runs (Finder, Spotlight, Terminal) brings back its controls.
+        DistributedNotificationCenter.default().addObserver(forName: LaunchManager.reopenNotification,
+                                                            object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reopen() }
+        }
+
+        NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
+                                               object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.capturer.invalidate() }
+        }
+
+        if !CGPreflightScreenCaptureAccess() { CGRequestScreenCaptureAccess() }
+
+        if !Settings.hasSeenHelp {
+            Settings.hasSeenHelp = true
+            help.show()
+        }
+    }
+
+    /// Finder / Spotlight / Dock open of the already-running app.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        reopen()
+        return false
+    }
+
+    /// The way back when the menu bar icon is hidden (notch, macOS menu bar settings,
+    /// menu bar managers): restore the icon and show the window with the full menu.
+    private func reopen() {
+        statusItem.isVisible = true
+        help.show()
+    }
+
+    private func popUpMenuAtMouse() {
+        guard let menu = statusItem.menu else { return }
+        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+    }
+
+    private func registerHotKeys() {
+        let taken = ShortcutAction.allCases.filter { !register($0, Settings.shortcut(for: $0)) }
+        if !taken.isEmpty {
+            let names = taken.map { Settings.shortcut(for: $0).display }.joined(separator: " and ")
+            showAlert("Shortcut already in use",
+                      "\(names) is used by another app. Pick a different one in the menu bar icon → Keyboard Shortcuts.")
+        }
+    }
+
+    /// (Re)registers one global hotkey. Returns false if another app already owns the combination.
+    @discardableResult
+    private func register(_ action: ShortcutAction, _ shortcut: Shortcut) -> Bool {
+        hotKeys[action] = nil // unregister the old one first
+        let id: UInt32 = action == .capture ? 1 : 2
+        let hotKey = HotKey(id: id, keyCode: shortcut.keyCode, modifiers: shortcut.carbonModifiers) { [weak self] in
+            MainActor.assumeIsolated {
+                switch action {
+                case .capture: self?.startCapture()
+                case .lastRegion: self?.captureLastRegion()
+                }
+            }
+        }
+        hotKeys[action] = hotKey
+        return hotKey != nil
+    }
+
+    // MARK: ShortcutStore
+
+    func shortcut(for action: ShortcutAction) -> Shortcut { Settings.shortcut(for: action) }
+
+    func setShortcut(_ shortcut: Shortcut, for action: ShortcutAction) -> String? {
+        if let other = ShortcutAction.allCases.first(where: { $0 != action && Settings.shortcut(for: $0) == shortcut }) {
+            return "\(shortcut.display) is already used for “\(other.title)”."
+        }
+        let previous = Settings.shortcut(for: action)
+        guard register(action, shortcut) else {
+            register(action, previous)
+            return "\(shortcut.display) is used by another app. Try a different combination."
+        }
+        Settings.setShortcut(shortcut, for: action)
+        updateMenuShortcuts()
+        return nil
+    }
+
+    func setRecording(_ recording: Bool) {
+        if recording {
+            hotKeys = [:]
+        } else {
+            for action in ShortcutAction.allCases where hotKeys[action] == nil {
+                register(action, Settings.shortcut(for: action))
+            }
+        }
+    }
+
+    private func updateMenuShortcuts() {
+        for (item, action) in [(captureItem, ShortcutAction.capture), (lastRegionItem, .lastRegion)] {
+            let shortcut = Settings.shortcut(for: action)
+            item?.keyEquivalent = shortcut.menuKeyEquivalent
+            item?.keyEquivalentModifierMask = shortcut.menuKeyEquivalent.isEmpty ? [] : shortcut.flags
+        }
+    }
+
+    // MARK: Capture
+
+    @objc func startCapture() {
+        guard !busy else { return }
+        busy = true
+
+        // Read these before the overlay takes focus.
+        let info = WindowInfo.current()
+        let previous = NSWorkspace.shared.frontmostApplication
+        let screen = Capturer.screenUnderMouse()
+        let date = Date()
+
+        Task { @MainActor in
+            do {
+                let image = try await capturer.capture(screen: screen)
+                let scale = screen.backingScaleFactor
+                let displayID = Capturer.displayID(of: screen) ?? 0
+                let controller = OverlayController(screen: screen, image: image) { [weak self] result in
+                    self?.finishOverlay(result, scale: scale, displayID: displayID, info: info, date: date, previous: previous)
+                }
+                overlay = controller
+                controller.show()
+            } catch {
+                busy = false
+                handleCaptureError(error)
+            }
+        }
+    }
+
+    /// Captures the same area as the last screenshot, with no overlay.
+    @objc func captureLastRegion() {
+        guard !busy else { return }
+        guard let region = Settings.lastRegion else {
+            NSSound.beep()
+            showAlert("No previous region", "Take a screenshot with \(Settings.shortcut(for: .capture).display) first.")
+            return
+        }
+        busy = true
+
+        let info = WindowInfo.current()
+        let date = Date()
+        // Same display as last time if it's still connected.
+        let screen = Capturer.screen(withDisplayID: region.displayID) ?? Capturer.screenUnderMouse()
+
+        Task { @MainActor in
+            defer { busy = false }
+            do {
+                let image = try await capturer.capture(screen: screen)
+                let sx = CGFloat(image.width) / screen.frame.width
+                let sy = CGFloat(image.height) / screen.frame.height
+                let pixels = CGRect(x: (region.x * sx).rounded(), y: (region.y * sy).rounded(),
+                                    width: (region.width * sx).rounded(), height: (region.height * sy).rounded())
+                    .intersection(CGRect(x: 0, y: 0, width: image.width, height: image.height))
+                guard !pixels.isNull, pixels.width >= 1, pixels.height >= 1, let cropped = image.cropping(to: pixels) else {
+                    throw CaptureError.noDisplay
+                }
+                save(cropped, scale: screen.backingScaleFactor, info: info, date: date)
+            } catch {
+                handleCaptureError(error)
+            }
+        }
+    }
+
+    private func finishOverlay(_ result: OverlayResult, scale: CGFloat, displayID: CGDirectDisplayID,
+                               info: WindowInfo, date: Date, previous: NSRunningApplication?) {
+        overlay?.close()
+        overlay = nil
+        busy = false
+        if let previous, previous.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+            previous.activate()
+        }
+
+        guard case .image(let image, let region) = result else { return }
+        Settings.lastRegion = Region(displayID: displayID, x: region.minX, y: region.minY,
+                                     width: region.width, height: region.height)
+        save(image, scale: scale, info: info, date: date)
+    }
+
+    private func save(_ image: CGImage, scale: CGFloat, info: WindowInfo, date: Date) {
+        let format = Settings.format
+        let quality = Settings.jpegQuality
+        DispatchQueue.global(qos: .userInitiated).async {
+            let outcome = Result { try Saver.write(image, scale: scale, format: format, quality: quality, info: info, date: date) }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self.completeSave(outcome) }
+            }
+        }
+    }
+
+    /// Success = file saved AND image on the clipboard.
+    private func completeSave(_ outcome: Result<(url: URL, png: Data), Error>) {
+        do {
+            let saved = try outcome.get()
+            try Saver.copyToClipboard(saved.png)
+            playShutter()
+        } catch {
+            NSSound(named: "Basso")?.play()
+            showAlert("Screenshot failed", error.localizedDescription)
+        }
+    }
+
+    private func playShutter() {
+        guard Settings.shutterEnabled, Settings.shutterVolume > 0, let shutter else { return }
+        shutter.stop()
+        shutter.volume = Float(Settings.shutterVolume) / 100
+        shutter.play()
+    }
+
+    private func handleCaptureError(_ error: Error) {
+        if !CGPreflightScreenCaptureAccess() {
+            askForPermission()
+        } else {
+            showAlert("Capture failed", error.localizedDescription)
+        }
+    }
+
+    private func askForPermission() {
+        let alert = NSAlert()
+        alert.messageText = "MacScreenshot needs Screen Recording permission"
+        alert.informativeText = "Turn on MacScreenshot in System Settings > Privacy & Security > Screen & System Audio Recording, then quit and reopen MacScreenshot."
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Cancel")
+        NSApp.activate()
+        if alert.runModal() == .alertFirstButtonReturn {
+            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+        }
+    }
+
+    private func showAlert(_ title: String, _ message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        NSApp.activate()
+        alert.runModal()
+    }
+
+    // MARK: Menu
+
+    private func buildMenu() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.autosaveName = "MacScreenshot"
+        statusItem.isVisible = true
+        statusItem.button?.image = MenuBarIcon.make()
+
+        let menu = NSMenu()
+        menu.delegate = self
+
+        captureItem = NSMenuItem(title: "Capture", action: #selector(startCapture), keyEquivalent: "")
+        menu.addItem(captureItem)
+        lastRegionItem = NSMenuItem(title: "Capture Last Region", action: #selector(captureLastRegion), keyEquivalent: "")
+        menu.addItem(lastRegionItem)
+        menu.addItem(NSMenuItem(title: "Keyboard Shortcuts…", action: #selector(showShortcuts), keyEquivalent: ""))
+        updateMenuShortcuts()
+        menu.addItem(.separator())
+
+        pngItem = NSMenuItem(title: "Save as PNG", action: #selector(choosePNG), keyEquivalent: "")
+        jpegItem = NSMenuItem(title: "Save as JPEG", action: #selector(chooseJPEG), keyEquivalent: "")
+        menu.addItem(pngItem)
+        menu.addItem(jpegItem)
+        let quality = sliderItem(value: Settings.jpegQuality, action: #selector(qualityChanged))
+        qualitySlider = quality.slider
+        qualityLabel = quality.label
+        menu.addItem(quality.item)
+        menu.addItem(.separator())
+
+        shutterItem = NSMenuItem(title: "Shutter Sound", action: #selector(toggleShutter), keyEquivalent: "")
+        menu.addItem(shutterItem)
+        let volume = sliderItem(value: Settings.shutterVolume, action: #selector(volumeChanged))
+        volumeSlider = volume.slider
+        volumeLabel = volume.label
+        menu.addItem(volume.item)
+        menu.addItem(.separator())
+
+        folderItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        folderItem.isEnabled = false
+        menu.addItem(folderItem)
+        menu.addItem(NSMenuItem(title: "Change Save Location…", action: #selector(chooseFolder), keyEquivalent: ""))
+        resetFolderItem = NSMenuItem(title: "Use macOS Screenshots Folder", action: #selector(resetFolder), keyEquivalent: "")
+        menu.addItem(resetFolderItem)
+        menu.addItem(NSMenuItem(title: "Open Screenshots Folder", action: #selector(openFolder), keyEquivalent: ""))
+        menu.addItem(.separator())
+
+        menu.addItem(NSMenuItem(title: "How to Use…", action: #selector(showHelp), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Send Feedback…", action: #selector(sendFeedback), keyEquivalent: ""))
+        let support = NSMenuItem(title: "Support MacScreenshot ♥", action: nil, keyEquivalent: "")
+        let supportMenu = NSMenu()
+        for (index, option) in Links.donations.enumerated() {
+            let item = NSMenuItem(title: option.title, action: #selector(openDonation(_:)), keyEquivalent: "")
+            item.tag = index
+            item.target = self
+            supportMenu.addItem(item)
+        }
+        support.submenu = supportMenu
+        menu.addItem(support)
+        menu.addItem(.separator())
+
+        loginItem = NSMenuItem(title: "Start at Login (auto-restart)", action: #selector(toggleLogin), keyEquivalent: "")
+        menu.addItem(loginItem)
+        memoryItem = NSMenuItem(title: "Memory: –", action: nil, keyEquivalent: "")
+        memoryItem.isEnabled = false
+        menu.addItem(memoryItem)
+        menu.addItem(NSMenuItem(title: "Quit MacScreenshot", action: #selector(quit), keyEquivalent: "q"))
+
+        menu.items.forEach { if $0.action != nil { $0.target = self } }
+        statusItem.menu = menu
+    }
+
+    /// A menu row with a label above a 0–100% slider in steps of 5.
+    private func sliderItem(value: Int, action: Selector) -> (item: NSMenuItem, slider: NSSlider, label: NSTextField) {
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 48))
+
+        let label = NSTextField(labelWithString: "")
+        label.font = .menuFont(ofSize: 0)
+        label.frame = NSRect(x: 20, y: 26, width: 200, height: 18)
+        container.addSubview(label)
+
+        let slider = NSSlider(value: Double(value), minValue: 0, maxValue: 100, target: self, action: action)
+        slider.numberOfTickMarks = 21
+        slider.allowsTickMarkValuesOnly = true
+        slider.isContinuous = true
+        slider.frame = NSRect(x: 18, y: 2, width: 204, height: 22)
+        container.addSubview(slider)
+
+        let item = NSMenuItem()
+        item.view = container
+        return (item, slider, label)
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        lastRegionItem.isEnabled = Settings.lastRegion != nil
+
+        let isJPEG = Settings.format == .jpeg
+        pngItem.state = isJPEG ? .off : .on
+        jpegItem.state = isJPEG ? .on : .off
+        qualitySlider.integerValue = Settings.jpegQuality
+        qualitySlider.isEnabled = isJPEG
+        qualityLabel.textColor = isJPEG ? .labelColor : .disabledControlTextColor
+        qualityLabel.stringValue = "JPEG quality: \(Settings.jpegQuality)%"
+
+        let soundOn = Settings.shutterEnabled
+        shutterItem.state = soundOn ? .on : .off
+        volumeSlider.integerValue = Settings.shutterVolume
+        volumeSlider.isEnabled = soundOn
+        volumeLabel.textColor = soundOn ? .labelColor : .disabledControlTextColor
+        volumeLabel.stringValue = "Shutter volume: \(Settings.shutterVolume)%"
+
+        folderItem.title = "Save to: " + (Saver.folder().path as NSString).abbreviatingWithTildeInPath
+        resetFolderItem.isHidden = Settings.saveFolder == nil
+
+        loginItem.state = LaunchManager.isEnabled ? .on : .off
+        memoryItem.title = String(format: "Memory: %.1f MB", Memory.footprintMB())
+    }
+
+    @objc private func choosePNG() { Settings.format = .png }
+    @objc private func chooseJPEG() { Settings.format = .jpeg }
+
+    @objc private func qualityChanged() {
+        Settings.jpegQuality = Int((qualitySlider.doubleValue / 5).rounded()) * 5
+        qualityLabel.stringValue = "JPEG quality: \(Settings.jpegQuality)%"
+    }
+
+    @objc private func toggleShutter() { Settings.shutterEnabled.toggle() }
+
+    @objc private func volumeChanged() {
+        let newValue = Int((volumeSlider.doubleValue / 5).rounded()) * 5
+        guard newValue != Settings.shutterVolume else { return }
+        Settings.shutterVolume = newValue
+        volumeLabel.stringValue = "Shutter volume: \(newValue)%"
+        playShutter() // preview
+    }
+
+    @objc private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose where MacScreenshot saves screenshots"
+        panel.prompt = "Use This Folder"
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = Saver.folder()
+        NSApp.activate()
+        if panel.runModal() == .OK, let url = panel.url {
+            Settings.saveFolder = url.path
+        }
+    }
+
+    @objc private func resetFolder() { Settings.saveFolder = nil }
+
+    @objc private func openFolder() {
+        let folder = Saver.folder()
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        NSWorkspace.shared.open(folder)
+    }
+
+    @objc private func toggleLogin() {
+        if LaunchManager.isEnabled { LaunchManager.disable() } else { LaunchManager.enable() }
+    }
+
+    @objc private func showHelp() { help.show() }
+    @objc private func showShortcuts() { shortcutsWindow.show() }
+    @objc private func sendFeedback() { NSWorkspace.shared.open(Links.feedback) }
+    @objc private func openDonation(_ sender: NSMenuItem) {
+        let options = Links.donations
+        guard options.indices.contains(sender.tag) else { return }
+        NSWorkspace.shared.open(options[sender.tag].url)
+    }
+
+    @objc private func quit() { NSApp.terminate(nil) }
+}

@@ -1,0 +1,31 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: MacScreenshot version
+      description: Menu bar icon → How to Use shows the version.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: "macOS 15.3, MacBook Pro M3"
+    validations:
+      required: true
+  - type: textarea
+    id: displays
+    attributes:
+      label: Displays
+      description: Number of monitors, resolutions, and whether any are scaled.
