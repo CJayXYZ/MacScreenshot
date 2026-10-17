@@ -39,6 +39,16 @@ Press **⌘⇧X** and the screen freezes instantly, so menus, tooltips and video
 
 ## Install
 
+**With Homebrew:**
+
+```
+brew install --cask cjayxyz/tap/macscreenshot
+```
+
+Then follow steps 2 and 3 below. Update later with `brew upgrade --cask macscreenshot`.
+
+**Or download it:**
+
 1. Download **MacScreenshot-x.y.z.zip** from the [latest release](https://github.com/CJayXYZ/MacScreenshot/releases/latest), unzip it, and drag **MacScreenshot.app** into **Applications**.
 2. Open it. Because this build isn't notarized by Apple yet, macOS will block the first launch:
    - Open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to MacScreenshot.

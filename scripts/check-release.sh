@@ -33,6 +33,11 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Resource
 grep -q "^## $VERSION " CHANGELOG.md && pass "CHANGELOG has $VERSION" || bad "CHANGELOG has no '## $VERSION' entry"
 if git rev-parse "v$VERSION" >/dev/null 2>&1; then bad "tag v$VERSION already exists"; else pass "tag v$VERSION is free"; fi
 
+echo "Homebrew tap"
+TAP_VER=$(gh api repos/CJayXYZ/homebrew-tap/contents/Casks/macscreenshot.rb -H "Accept: application/vnd.github.raw" 2>/dev/null | sed -n 's/^ *version "\(.*\)"/\1/p')
+[[ "$TAP_VER" == "$VERSION" ]] && pass "tap cask is $VERSION" \
+    || warn "tap cask is ${TAP_VER:-missing}; after publishing, update version + sha256 in CJayXYZ/homebrew-tap Casks/macscreenshot.rb"
+
 echo "Privacy"
 EMAIL=$(git config user.email)
 [[ "$EMAIL" == *users.noreply.github.com ]] && pass "commits use a no-reply email" || bad "commits would publish '$EMAIL' (set a GitHub no-reply email for this repo)"
