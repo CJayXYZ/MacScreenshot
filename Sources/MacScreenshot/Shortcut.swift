@@ -13,9 +13,9 @@ struct Shortcut: Codable, Equatable {
     static let captureDefault = Shortcut(keyCode: UInt32(kVK_ANSI_X),
                                          modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue, key: "X")
     static let lastRegionDefault = Shortcut(keyCode: UInt32(kVK_ANSI_X),
-                                            modifiers: NSEvent.ModifierFlags([.command, .shift, .option]).rawValue, key: "X")
+                                            modifiers: NSEvent.ModifierFlags([.command, .shift, .control]).rawValue, key: "X")
     static let editLastDefault = Shortcut(keyCode: UInt32(kVK_ANSI_X),
-                                          modifiers: NSEvent.ModifierFlags([.command, .shift, .control]).rawValue, key: "X")
+                                          modifiers: NSEvent.ModifierFlags([.command, .shift, .option]).rawValue, key: "X")
 
     private static let allowedFlags: NSEvent.ModifierFlags = [.control, .option, .shift, .command]
 

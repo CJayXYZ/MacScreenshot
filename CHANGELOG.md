@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.3 — 2026-10-17
+
+- **New default shortcuts:** Edit Last Capture is now **⌘⌥⇧X** (easier to reach) and Capture Last Region is **⌃⇧⌘X**, matching how macOS uses ⌃ for capture variations. Shortcuts you set yourself are kept. You can change any of them in Keyboard Shortcuts….
+
 ## 1.1.2 — 2026-10-17
 
 - Spotlight (⌘Space) now finds MacScreenshot by "mac", "screen", "shot", "screenshot", "capture" or "snip". The app adds these search keywords to itself when it starts.

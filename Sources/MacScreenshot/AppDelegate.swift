@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard LaunchManager.bootstrap() else { exit(0) }
 
+        Settings.migrateShortcutDefaults()
         buildMenu()
         registerHotKeys()
         startMemoryJanitor()

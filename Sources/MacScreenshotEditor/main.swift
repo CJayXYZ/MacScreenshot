@@ -18,7 +18,7 @@ final class EditorAppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 let alert = NSAlert()
                 alert.messageText = "Nothing to edit yet"
-                alert.informativeText = "Take a screenshot with MacScreenshot first, then press ⌃⇧⌘X."
+                alert.informativeText = "Take a screenshot with MacScreenshot first, then choose Edit Last Capture from its menu bar icon."
                 alert.runModal()
                 NSApp.terminate(nil)
             }

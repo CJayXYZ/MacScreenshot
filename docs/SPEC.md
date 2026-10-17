@@ -46,7 +46,7 @@ Esc always steps back one level: mid-drag it clears the selection; from the plai
 | Esc (2nd) | Crosshair, no selection | Overlay closes, back to live screen, nothing saved |
 | Cmd+A | Crosshair or dragging | Whole frozen screen saved + copied, overlay closes |
 | Cmd+Shift+X | While overlay is open | Ignored (no second freeze) |
-| Cmd+Shift+Option+X | Anywhere | Capture last region: same area on the same display as the last screenshot, saved + copied instantly, no overlay. Beeps with a hint if there's no previous region. |
+| Cmd+Shift+Control+X | Anywhere | Capture last region: same area on the same display as the last screenshot, saved + copied instantly, no overlay. Beeps with a hint if there's no previous region. |
 
 The last region is the selection (or full screen via Cmd+A) from the most recent Cmd+Shift+X capture, remembered across restarts. If that display is disconnected, the screen under the pointer is used.
 
@@ -92,7 +92,7 @@ MacScreenshot is always running: it starts at login and macOS relaunches it auto
 1. **Auto start.** Registered as a login item (SMAppService); launches at login with no window.
 2. **Auto restart.** A LaunchAgent with KeepAlive relaunches MacScreenshot within a few seconds if it exits unexpectedly. Quit from the menu stops it until next login.
 3. **Menu bar icon.** Camera icon with:
-    - Capture (Cmd+Shift+X), Capture Last Region (Cmd+Shift+Option+X)
+    - Capture (Cmd+Shift+X), Capture Last Region (Cmd+Shift+Control+X)
     - Save as PNG / Save as JPEG, JPEG quality slider
     - Shutter Sound (on/off), Shutter volume slider (0–100%, steps of 5, plays a preview; greyed out when sound is off)
     - Save to: current folder, Change Save Location… (folder picker), Use macOS Screenshots Folder (shown only when a custom folder is set), Open Screenshots Folder
@@ -132,7 +132,7 @@ How it's kept low and tracked:
 
 ## 8. Editor (v1.1.0)
 
-**⌃⇧⌘X** (menu: Edit Last Capture…) opens the most recent capture in a simple editor. Quick captures stay exactly as fast as before; editing only happens when you ask for it.
+**⌘⌥⇧X** (menu: Edit Last Capture…) opens the most recent capture in a simple editor. Quick captures stay exactly as fast as before; editing only happens when you ask for it.
 
 | Tool | Key | How it works |
 | --- | --- | --- |

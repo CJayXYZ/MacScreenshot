@@ -28,8 +28,8 @@ Press **⌘⇧X** and the screen freezes instantly, so menus, tooltips and video
 - **Freeze-frame capture.** What you see when you press the shortcut is what you get.
 - **Pixel-precise magnifier.** A loupe follows the pointer with exact coordinates and the selection size in pixels.
 - **Saved and copied every time.** Paste straight into Slack, Mail, Figma or a browser.
-- **Quick edits (⌃⇧⌘X).** Crop, arrows, boxes, text and highlights, then save or replace.
-- **Capture last region (⌘⌥⇧X).** Re-shoot the same area instantly, perfect for before/after shots.
+- **Quick edits (⌘⌥⇧X).** Crop, arrows, boxes, text and highlights, then save or replace.
+- **Capture last region (⌃⇧⌘X).** Re-shoot the same area instantly, perfect for before/after shots.
 - **Smart file names.** For example, `screenshot-2026-10-17_15-08-12-Google Chrome-GitHub - Pull request.png`
 - **PNG or JPEG** with a 0–100% quality slider.
 - **Your folder.** Uses the macOS screenshot folder, or any folder you pick.
@@ -61,7 +61,7 @@ Requires macOS 14 Sonoma or later, on Apple Silicon or Intel.
 
 ### Editing
 
-Press **⌃⇧⌘X** to open your latest capture in a simple editor:
+Press **⌘⌥⇧X** to open your latest capture in a simple editor:
 
 - **Crop (C)**, **Arrow (A)**, **Box (B)**, **Circle (O)**, **Text (T)** and **Highlight (H)**
 - Thin, medium or thick lines; text in four sizes and three weights (regular, bold, heavy)

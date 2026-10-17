@@ -1,4 +1,5 @@
-import Foundation
+import AppKit
+import Carbon.HIToolbox
 import Shared
 
 /// Settings only the capture app uses.
@@ -18,8 +19,28 @@ extension Settings {
             ?? action.defaultShortcut
     }
 
+    /// A shortcut equal to the default isn't stored, so a later change of defaults still applies.
     static func setShortcut(_ shortcut: Shortcut, for action: ShortcutAction) {
-        defaults.set(try? JSONEncoder().encode(shortcut), forKey: key(for: action))
+        if shortcut.keyCode == action.defaultShortcut.keyCode, shortcut.modifiers == action.defaultShortcut.modifiers {
+            defaults.removeObject(forKey: key(for: action))
+        } else {
+            defaults.set(try? JSONEncoder().encode(shortcut), forKey: key(for: action))
+        }
+    }
+
+    /// 1.1.x stored defaults when "Reset" was pressed. 1.2 swapped the last-region (⌥) and edit (⌃)
+    /// defaults, so a stored old default is dropped once, or it would clash with the new ones.
+    static func migrateShortcutDefaults() {
+        guard !defaults.bool(forKey: "shortcutsMigrated12") else { return }
+        let old: [(ShortcutAction, NSEvent.ModifierFlags)] = [(.lastRegion, [.command, .shift, .option]),
+                                                             (.editLast, [.command, .shift, .control])]
+        for (action, flags) in old {
+            let stored = defaults.data(forKey: key(for: action)).flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }
+            if let stored, stored.keyCode == UInt32(kVK_ANSI_X), stored.modifiers == flags.rawValue {
+                defaults.removeObject(forKey: key(for: action))
+            }
+        }
+        defaults.set(true, forKey: "shortcutsMigrated12")
     }
 
     private static func key(for action: ShortcutAction) -> String {
