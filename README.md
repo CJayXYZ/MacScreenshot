@@ -5,7 +5,7 @@
 <h1 align="center">MacScreenshot</h1>
 
 <p align="center">
-  <b>The simple screenshot tool Mac users everywhere have been waiting for is here.</b>
+  <b>It's here: the simple screenshot tool Mac users everywhere have been waiting for.</b>
 </p>
 
 <p align="center">
