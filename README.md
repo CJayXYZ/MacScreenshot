@@ -5,6 +5,10 @@
 <h1 align="center">MacScreenshot</h1>
 
 <p align="center">
+  <b>The simple screenshot tool Mac users everywhere have been waiting for is here.</b>
+</p>
+
+<p align="center">
   <b>Freeze, select, done.</b> A fast, native screenshot tool for macOS:<br>
   the simple Greenshot / Flameshot alternative for Mac.
 </p>
