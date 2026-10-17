@@ -1,6 +1,7 @@
 import AppKit
 import ImageIO
 import SwiftUI
+import Shared
 
 /// The editor window: toolbar on top, canvas below. Everything (image, undo history)
 /// is released when the window closes.
@@ -8,12 +9,19 @@ import SwiftUI
 final class EditorWindowController: NSObject, NSWindowDelegate {
     /// Called after Save / Replace with the written file and PNG data for the clipboard.
     var onSaved: ((URL, Data) -> Void)?
+    /// Called when the window has closed and everything is released.
+    var onClosed: (() -> Void)?
 
     private var window: EditorWindow?
     private var model: EditorModel?
     private var canvas: EditorCanvas?
-    private var fileURL: URL?
+    private(set) var fileURL: URL?
     private var closingAfterSave = false
+
+    func bringToFront() {
+        NSApp.activate()
+        window?.makeKeyAndOrderFront(nil)
+    }
 
     func open(_ url: URL) throws {
         if let window, fileURL == url {
@@ -156,12 +164,15 @@ final class EditorWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        // Free the image and undo history.
+        // Free the image, undo history and drawing buffers.
         window?.editor = nil
+        window?.contentView = nil
         window = nil
         model = nil
         canvas = nil
         fileURL = nil
+        Memory.trimSoon()
+        onClosed?()
     }
 }
 

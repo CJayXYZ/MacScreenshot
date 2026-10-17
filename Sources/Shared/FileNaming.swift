@@ -1,7 +1,7 @@
 import Foundation
 
 /// Builds `screenshot-<date>_<time>-<app>-<window title>` file names.
-enum FileNaming {
+public enum FileNaming {
     static let maxTailCharacters = 80
     static let maxTailBytes = 180 // keeps the full name well under the 255-byte filesystem limit
 
@@ -9,7 +9,7 @@ enum FileNaming {
         .union(.newlines)
         .union(.controlCharacters)
 
-    static func baseName(date: Date, app: String?, title: String?) -> String {
+    public static func baseName(date: Date, app: String?, title: String?) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
@@ -24,12 +24,12 @@ enum FileNaming {
         return name
     }
 
-    static func sanitize(_ text: String) -> String {
+    public static func sanitize(_ text: String) -> String {
         let replaced = String(String.UnicodeScalarView(text.unicodeScalars.map { forbidden.contains($0) ? " " : $0 }))
         return replaced.split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
     }
 
-    static func truncate(_ text: String) -> String {
+    public static func truncate(_ text: String) -> String {
         var out = text
         if out.count > maxTailCharacters {
             let cut = String(out.prefix(maxTailCharacters))
@@ -45,7 +45,7 @@ enum FileNaming {
     }
 
     /// Appends -2, -3, ... when a file with the same name already exists.
-    static func uniqueURL(in folder: URL, base: String, ext: String) -> URL {
+    public static func uniqueURL(in folder: URL, base: String, ext: String) -> URL {
         let fm = FileManager.default
         var url = folder.appendingPathComponent(base).appendingPathExtension(ext)
         var n = 2

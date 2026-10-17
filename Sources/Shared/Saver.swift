@@ -2,9 +2,13 @@ import AppKit
 import ImageIO
 import UniformTypeIdentifiers
 
-enum Saver {
+public enum Saver {
     /// The folder chosen in MacScreenshot, else the macOS Screenshots folder.
-    static func folder() -> URL {
+    /// Set by the memory test so it never writes into the user's screenshot folder.
+    public nonisolated(unsafe) static var folderOverride: URL?
+
+    public static func folder() -> URL {
+        if let folderOverride { return folderOverride }
         if let custom = Settings.saveFolder, !custom.isEmpty {
             return URL(fileURLWithPath: custom, isDirectory: true)
         }
@@ -12,7 +16,7 @@ enum Saver {
     }
 
     /// The folder macOS saves screenshots to (Screenshot app > Options > Save to), else the Desktop.
-    static func systemFolder() -> URL {
+    public static func systemFolder() -> URL {
         if let location = CFPreferencesCopyAppValue("location" as CFString, "com.apple.screencapture" as CFString) as? String,
            !location.isEmpty {
             return URL(fileURLWithPath: (location as NSString).expandingTildeInPath, isDirectory: true)
@@ -22,7 +26,7 @@ enum Saver {
 
     /// Encodes and writes the file. Runs off the main thread.
     /// Returns the saved file and the PNG data for the clipboard.
-    static func write(_ image: CGImage, scale: CGFloat, format: ImageFormat, quality: Int,
+    public static func write(_ image: CGImage, scale: CGFloat, format: ImageFormat, quality: Int,
                       info: WindowInfo, date: Date) throws -> (url: URL, png: Data) {
         let (fileData, png) = try encodeForFile(image, scale: scale, format: format, quality: quality)
 
@@ -40,7 +44,7 @@ enum Saver {
 
     /// Writes an edited image to a specific file (a new "-edited" copy, or over the original).
     /// Returns the PNG data for the clipboard.
-    static func write(_ image: CGImage, to url: URL, scale: CGFloat, format: ImageFormat, quality: Int,
+    public static func write(_ image: CGImage, to url: URL, scale: CGFloat, format: ImageFormat, quality: Int,
                       replacing: Bool) throws -> Data {
         let (fileData, png) = try encodeForFile(image, scale: scale, format: format, quality: quality)
         do {
@@ -64,7 +68,7 @@ enum Saver {
     }
 
     /// Puts the PNG on the clipboard. Main thread only.
-    static func copyToClipboard(_ png: Data) throws {
+    public static func copyToClipboard(_ png: Data) throws {
         let board = NSPasteboard.general
         board.clearContents()
         guard board.setData(png, forType: .png) else { throw CaptureError.clipboardFailed }

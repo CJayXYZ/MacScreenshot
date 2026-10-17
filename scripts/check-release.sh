@@ -42,6 +42,11 @@ if ./build.sh --release >/tmp/macscreenshot-release.log 2>&1; then
     pass "release build succeeded"
     ARCHS=$(lipo -archs build/MacScreenshot.app/Contents/MacOS/MacScreenshot)
     [[ "$ARCHS" == *arm64* && "$ARCHS" == *x86_64* ]] && pass "universal binary ($ARCHS)" || bad "not universal ($ARCHS)"
+    EDITOR_BIN="build/MacScreenshot.app/Contents/Helpers/MacScreenshot Editor.app/Contents/MacOS/MacScreenshot Editor"
+    EARCHS=$(lipo -archs "$EDITOR_BIN" 2>/dev/null)
+    [[ "$EARCHS" == *arm64* && "$EARCHS" == *x86_64* ]] && pass "editor app bundled, universal" || bad "editor app missing or not universal"
+    EVER=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Resources/Editor-Info.plist)
+    [[ "$EVER" == "$VERSION" ]] && pass "editor version matches ($EVER)" || bad "editor version $EVER != app $VERSION"
     codesign --verify --deep --strict build/MacScreenshot.app 2>/dev/null && pass "code signature valid" || bad "code signature invalid"
     [[ -f "build/MacScreenshot-$VERSION.zip" ]] && pass "build/MacScreenshot-$VERSION.zip ready" || bad "release zip missing"
     grep -q "warning:" /tmp/macscreenshot-release.log && warn "compiler warnings, see /tmp/macscreenshot-release.log" || pass "no compiler warnings"

@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Shared
 
 /// Shows the image fitted to the view and turns mouse drags into annotations.
 /// Flipped (top-left origin) so view and image coordinates run the same way.

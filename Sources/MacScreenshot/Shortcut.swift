@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import Shared
 
 /// A user-assignable global keyboard shortcut.
 struct Shortcut: Codable, Equatable {

@@ -1,5 +1,7 @@
 import AppKit
 import QuartzCore
+import Carbon.HIToolbox
+import Shared
 
 enum OverlayResult {
     case cancelled
@@ -63,6 +65,13 @@ enum BackgroundCursor {
 /// (window, layers, the frozen image) is released when `close()` is called.
 final class OverlayController {
     private var window: OverlayWindow?
+    /// Esc and ⌘A registered system-wide only while the frozen screen is up. macOS can leave
+    /// another app receiving keystrokes (often after lots of moving/dragging), and then
+    /// ordinary key events never reach the overlay. Hotkeys always do. Released on close.
+    private var keys: [HotKey] = []
+
+    /// The overlay's view, for the memory test to finish a capture without a person.
+    var overlayView: OverlayView? { window?.contentView as? OverlayView }
 
     init(screen: NSScreen, image: CGImage, onFinish: @escaping (OverlayResult) -> Void) {
         let window = OverlayWindow(contentRect: screen.frame, styleMask: [.borderless, .nonactivatingPanel],
@@ -91,15 +100,30 @@ final class OverlayController {
         window.makeFirstResponder(view)
         view.showLoupeAtMouse()
         CaptureCursor.set()
+        keys = [
+            HotKey(id: 20, keyCode: UInt32(kVK_Escape), modifiers: 0) { [weak view] in
+                MainActor.assumeIsolated { view?.escape() }
+            },
+            HotKey(id: 21, keyCode: UInt32(kVK_ANSI_A), modifiers: UInt32(cmdKey)) { [weak view] in
+                MainActor.assumeIsolated { view?.finishFullScreen() }
+            },
+        ].compactMap { $0 }
         // Re-assert once the window server has finished ordering the panel in.
         DispatchQueue.main.async { CaptureCursor.set() }
     }
 
     func close() {
+        // Give Esc and ⌘A back to the rest of the system. Released on the next turn of the run
+        // loop, because close() is often called from inside one of these hotkeys' handlers.
+        let released = keys
+        keys = []
+        DispatchQueue.main.async { _ = released }
         NSCursor.arrow.set()
         window?.orderOut(nil)
         window?.contentView = nil
+        window?.close() // ordered-out windows stay in NSApp's window list until closed
         window = nil
+        Memory.trimSoon()
     }
 }
 
@@ -128,7 +152,7 @@ final class OverlayView: NSView {
     private static let cells = 21          // pixels shown across the loupe (odd, so one is centred)
     private static let cellSize: CGFloat = 8
     private static var loupeSide: CGFloat { CGFloat(cells) * cellSize }
-    private static let labelHeight: CGFloat = 18
+    private static let labelHeight: CGFloat = 32
     private static let labelGap: CGFloat = 4
     private static let loupeOffset: CGFloat = 24
 
@@ -212,10 +236,8 @@ final class OverlayView: NSView {
 
         loupeLabel.frame = CGRect(x: 0, y: 0, width: side, height: Self.labelHeight)
         loupeLabel.contentsScale = scale
-        loupeLabel.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
-        loupeLabel.fontSize = 11
         loupeLabel.alignmentMode = .center
-        loupeLabel.foregroundColor = NSColor.white.cgColor
+        loupeLabel.isWrapped = true
         loupeLabel.backgroundColor = NSColor.black.withAlphaComponent(0.75).cgColor
         loupeLabel.cornerRadius = 4
         loupe.addSublayer(loupeLabel)
@@ -239,9 +261,9 @@ final class OverlayView: NSView {
             loupeImage.contents = sample(px: px, py: py)
             if let rect = selectionRect {
                 let r = pixelRect(rect)
-                loupeLabel.string = "\(Int(r.width)) × \(Int(r.height))"
+                loupeLabel.string = Self.label("\(Int(r.width)) × \(Int(r.height))", hint: "Esc to redo")
             } else {
-                loupeLabel.string = "\(px), \(py)"
+                loupeLabel.string = Self.label("\(px), \(py)", hint: "Esc to exit · ⌘A full screen")
             }
 
             // Below-right of the pointer, flipped to the other side near screen edges.
@@ -385,7 +407,24 @@ final class OverlayView: NSView {
     }
 
     /// First Esc clears an active selection; Esc with no selection closes the overlay.
-    private func escape() {
+    /// Coordinates (or selection size) on top, a dimmer key hint below.
+    private static func label(_ main: String, hint: String) -> NSAttributedString {
+        let centered = NSMutableParagraphStyle()
+        centered.alignment = .center
+        let text = NSMutableAttributedString(string: main + "\n", attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium),
+            .foregroundColor: NSColor.white,
+            .paragraphStyle: centered,
+        ])
+        text.append(NSAttributedString(string: hint, attributes: [
+            .font: NSFont.systemFont(ofSize: 10, weight: .regular),
+            .foregroundColor: NSColor.white.withAlphaComponent(0.75),
+            .paragraphStyle: centered,
+        ]))
+        return text
+    }
+
+    func escape() {
         if start != nil {
             start = nil
             current = nil
@@ -397,7 +436,7 @@ final class OverlayView: NSView {
         }
     }
 
-    private func finishFullScreen() {
+    func finishFullScreen() {
         finish(.image(image, region: CGRect(origin: .zero, size: bounds.size)))
     }
 

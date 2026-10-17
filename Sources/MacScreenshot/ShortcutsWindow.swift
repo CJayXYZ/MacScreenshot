@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Shared
 
 enum ShortcutAction: CaseIterable {
     case capture, lastRegion, editLast
@@ -58,6 +59,10 @@ final class ShortcutsWindowController {
             window.isReleasedWhenClosed = false
             window.center()
             self.window = window
+            Memory.releaseOnClose(window) { [weak self] in
+                self?.window?.contentViewController = nil
+                self?.window = nil
+            }
         }
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)

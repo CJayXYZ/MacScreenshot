@@ -1,5 +1,6 @@
 import AppKit
 import ServiceManagement
+import Shared
 
 /// Start-at-login and auto-restart, via a LaunchAgent bundled in Contents/Library/LaunchAgents.
 /// launchd starts MacScreenshot at login and relaunches it after a crash (KeepAlive.SuccessfulExit = false);

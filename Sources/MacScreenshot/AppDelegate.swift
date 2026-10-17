@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import Shared
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ShortcutStore {
@@ -10,11 +11,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
     private var busy = false
     private lazy var help = HelpWindowController { [weak self] in self?.popUpMenuAtMouse() }
     private lazy var shortcutsWindow = ShortcutsWindowController(store: self)
-    private lazy var editor: EditorWindowController = {
-        let editor = EditorWindowController()
-        editor.onSaved = { [weak self] url, png in self?.editSaved(url, png: png) }
-        return editor
-    }()
     private var editItem: NSMenuItem!
     private var captureItem: NSMenuItem!
 
@@ -31,15 +27,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
     private var loginItem: NSMenuItem!
     private var memoryItem: NSMenuItem!
 
-    private lazy var shutter: NSSound? =
-        NSSound(contentsOfFile: "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/Screen Capture.aif",
-                byReference: true) ?? NSSound(named: "Tink")
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard LaunchManager.bootstrap() else { exit(0) }
 
         buildMenu()
         registerHotKeys()
+        startMemoryJanitor()
 
         // Opening the app again while it runs (Finder, Spotlight, Terminal) brings back its controls.
         DistributedNotificationCenter.default().addObserver(forName: LaunchManager.reopenNotification,
@@ -58,6 +51,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
             Settings.hasSeenHelp = true
             help.show()
         }
+    }
+
+    // MARK: Memory
+
+    private var janitorTimer: Timer?
+    private var janitorTicks = 0
+
+    /// Keeps the always-running app's memory flat. AppKit empties its per-event memory pool
+    /// only when an event is handed to the app; a menu bar app can sit inside one wait for
+    /// minutes while macOS passes mouse events by it, and those pile up in that pool. A tiny
+    /// no-op event every 2 s keeps that pile to a few dozen events (less fragmentation); every
+    /// 30 s, freed memory is returned to macOS. Costs microseconds, coalesced with other timers.
+    private func startMemoryJanitor() {
+        let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.janitorTick() }
+        }
+        timer.tolerance = 1
+        RunLoop.main.add(timer, forMode: .common)
+        janitorTimer = timer
+    }
+
+    private func janitorTick() {
+        if let wake = NSEvent.otherEvent(with: .applicationDefined, location: .zero, modifierFlags: [],
+                                         timestamp: 0, windowNumber: 0, context: nil,
+                                         subtype: 0, data1: 0, data2: 0) {
+            NSApp.postEvent(wake, atStart: false)
+        }
+        janitorTicks += 1
+        if janitorTicks % 15 == 0 { malloc_zone_pressure_relief(nil, 0) }
     }
 
     /// Finder / Spotlight / Dock open of the already-running app.
@@ -241,14 +263,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
             NSSound(named: "Basso")?.play()
             showAlert("Screenshot failed", error.localizedDescription)
         }
+        Memory.trimSoon()
     }
 
-    private func playShutter() {
-        guard Settings.shutterEnabled, Settings.shutterVolume > 0, let shutter else { return }
-        shutter.stop()
-        shutter.volume = Float(Settings.shutterVolume) / 100
-        shutter.play()
-    }
+    private func playShutter() { Shutter.play() }
 
     private func handleCaptureError(_ error: Error) {
         if !CGPreflightScreenCaptureAccess() {
@@ -446,7 +464,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
     @objc private func showHelp() { help.show() }
     @objc private func showShortcuts() { shortcutsWindow.show() }
 
-    /// Opens the most recent capture in the editor.
+    /// Opens the most recent capture in MacScreenshot Editor, a separate app inside this bundle.
+    /// It runs in its own process: closing, crashing or force-quitting it never affects capture,
+    /// and all its memory is freed when it quits.
     @objc func editLastCapture() {
         guard !busy else { return }
         guard let path = Settings.lastCapturePath else {
@@ -457,21 +477,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
             showAlert("Last capture not found", "\((path as NSString).lastPathComponent) was moved or deleted.")
             return
         }
-        do {
-            try editor.open(URL(fileURLWithPath: path))
-        } catch {
-            showAlert("Couldn't open the capture", error.localizedDescription)
-        }
-    }
-
-    /// Save and Replace both end here: clipboard, shutter, and the edit becomes the "last capture".
-    private func editSaved(_ url: URL, png: Data) {
-        Settings.lastCapturePath = url.path
-        do {
-            try Saver.copyToClipboard(png)
-            playShutter()
-        } catch {
-            showAlert("Saved, but not copied", error.localizedDescription)
+        let editorApp = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/MacScreenshot Editor.app")
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+        NSWorkspace.shared.open([URL(fileURLWithPath: path)], withApplicationAt: editorApp, configuration: config) { _, error in
+            guard let error else { return }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self.showAlert("Couldn't open the editor", error.localizedDescription) }
+            }
         }
     }
     @objc private func sendFeedback() { NSWorkspace.shared.open(Links.feedback) }

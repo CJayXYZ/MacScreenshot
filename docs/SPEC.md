@@ -154,4 +154,6 @@ How it's kept low and tracked:
 - Closing with unsaved edits asks "Discard edits?". Esc closes.
 - If there's no capture yet, or the file was moved/deleted, an alert says so.
 - The shortcut is changeable in Keyboard Shortcuts like the others.
-- Memory: the editor loads only while open and frees the image and undo history on close.
+- **Separate app (1.1.1):** the editor is "MacScreenshot Editor", a nested app at `MacScreenshot.app/Contents/Helpers/`. It runs in its own process, shows its own name in Activity Monitor and a Dock icon while open, and quits when its last window closes. Capture never depends on it, and killing it can't affect ⌘⇧X.
+- Both apps share one preferences domain (`io.github.cjayxyz.MacScreenshot`), so JPEG quality, shutter and folder settings apply to edits too.
+- Memory: the capture app stays ~12 MB idle (~17 MB after captures, flat). The editor's memory is freed entirely when it quits.

@@ -31,7 +31,7 @@ Press **⌘⇧X** and the screen freezes instantly, so menus, tooltips and video
 - **Your folder.** Uses the macOS screenshot folder, or any folder you pick.
 - **Your shortcuts.** Change both capture shortcuts to any combination you like.
 - **Always there.** Lives in the menu bar, starts at login, restarts itself if it ever crashes.
-- **Light.** Native Swift, about 1 MB download, ~15 MB of memory when idle. No Electron, no ads, no tracking, no network access.
+- **Light.** Native Swift, a small download, about 12 MB of memory when idle. The editor runs as its own app only while you edit. No Electron, no ads, no tracking, no network access.
 
 ## Install
 
@@ -63,6 +63,8 @@ Press **⌃⇧⌘X** to open your latest capture in a simple editor:
 - Thin, medium or thick lines; text in four sizes and three weights (regular, bold, heavy)
 - 7 colours, plus undo/redo (⌘Z / ⇧⌘Z)
 - **Save** keeps the original and adds an `-edited` copy. **Replace** overwrites the original. Both copy the result to the clipboard.
+
+The editor is a separate app, **MacScreenshot Editor**, bundled inside MacScreenshot. It runs only while you're editing and quits when you close its window, freeing all its memory. Capturing never depends on it.
 
 To change the shortcuts, open the menu bar icon → **Keyboard Shortcuts…**, click a shortcut and press the new combination.
 

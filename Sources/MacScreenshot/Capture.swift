@@ -1,39 +1,6 @@
 import AppKit
 import ScreenCaptureKit
-
-enum CaptureError: LocalizedError {
-    case noDisplay
-    case encodeFailed
-    case clipboardFailed
-    case writeFailed(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .noDisplay: return "Couldn't find the display to capture."
-        case .encodeFailed: return "Couldn't encode the image."
-        case .clipboardFailed: return "Couldn't copy the image to the clipboard."
-        case .writeFailed(let reason): return "Couldn't save the file: \(reason)"
-        }
-    }
-}
-
-/// The app and window that were frontmost when the hotkey was pressed.
-struct WindowInfo {
-    let app: String?
-    let title: String?
-
-    static func current() -> WindowInfo {
-        guard let front = NSWorkspace.shared.frontmostApplication else { return WindowInfo(app: nil, title: nil) }
-        let pid = front.processIdentifier
-        let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-        // The list is ordered front to back, so the first normal window of the app is its active one.
-        let title = windows.lazy
-            .filter { ($0[kCGWindowOwnerPID as String] as? pid_t) == pid && ($0[kCGWindowLayer as String] as? Int) == 0 }
-            .compactMap { $0[kCGWindowName as String] as? String }
-            .first { !$0.isEmpty }
-        return WindowInfo(app: front.localizedName, title: title)
-    }
-}
+import Shared
 
 @MainActor
 final class Capturer {

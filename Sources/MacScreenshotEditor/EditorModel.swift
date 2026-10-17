@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Shared
 
 enum EditorTool: String, CaseIterable, Identifiable {
     case crop, arrow, box, circle, text, highlight

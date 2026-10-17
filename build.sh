@@ -8,16 +8,16 @@ cd "$(dirname "$0")"
 MODE="${1:-}"
 if [[ "$MODE" == "--release" ]]; then
     swift build -c release --arch arm64 --arch x86_64
-    BINARY=.build/apple/Products/Release/MacScreenshot
+    PRODUCTS=.build/apple/Products/Release
 else
     swift build -c release
-    BINARY=.build/release/MacScreenshot
+    PRODUCTS=.build/release
 fi
 
 APP=build/MacScreenshot.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Library/LaunchAgents"
-cp "$BINARY" "$APP/Contents/MacOS/MacScreenshot"
+cp "$PRODUCTS/MacScreenshot" "$APP/Contents/MacOS/MacScreenshot"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/io.github.cjayxyz.MacScreenshot.agent.plist "$APP/Contents/Library/LaunchAgents/"
 
@@ -39,10 +39,23 @@ for s in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 
+# MacScreenshot Editor: a separate app (own process, own name in Activity Monitor) inside
+# the main bundle. Quitting or crashing it never affects capture.
+EDITOR="$APP/Contents/Helpers/MacScreenshot Editor.app"
+mkdir -p "$EDITOR/Contents/MacOS" "$EDITOR/Contents/Resources"
+# The executable name is what Activity Monitor shows, so it carries the readable name.
+cp "$PRODUCTS/MacScreenshotEditor" "$EDITOR/Contents/MacOS/MacScreenshot Editor"
+cp Resources/Editor-Info.plist "$EDITOR/Contents/Info.plist"
+cp "$APP/Contents/Resources/AppIcon.icns" "$APP/Contents/Resources/Assets.car" "$EDITOR/Contents/Resources/"
+
 # A stable signing identity keeps the Screen Recording permission across rebuilds.
 IDENTITY="${MACSCREENSHOT_SIGN_IDENTITY:-Apple Development}"
-if ! codesign --force --options runtime --timestamp=none --sign "$IDENTITY" "$APP" 2>/dev/null; then
+# Sign the nested editor first, then the outer app (which seals the editor's signature).
+if codesign --force --options runtime --timestamp=none --sign "$IDENTITY" "$EDITOR" 2>/dev/null; then
+    codesign --force --options runtime --timestamp=none --sign "$IDENTITY" "$APP"
+else
     echo "warning: '$IDENTITY' not found, signing ad hoc (Screen Recording permission resets each build)"
+    codesign --force --sign - "$EDITOR"
     codesign --force --sign - "$APP"
 fi
 echo "Built $APP"

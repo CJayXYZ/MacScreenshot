@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1 — 2026-10-17
+
+- The editor is now **MacScreenshot Editor**, a separate app inside MacScreenshot.app. It runs in its own process with its own name in Activity Monitor and its own Dock icon while open. Closing, crashing or force-quitting it never affects capture, and it frees all its memory when it quits.
+- The always-running capture app stays lean: about 12 MB idle and 17 MB after repeated captures. It used to climb to 33–45 MB after editing.
+- Closed windows release their memory, and freed memory goes back to macOS after each capture.
+- **Esc always works on the frozen screen.** Esc and ⌘A are claimed system-wide only while it's showing, so they work even when macOS keeps another app receiving keystrokes. They're released as soon as it closes.
+- A hint under the coordinates: "Esc to exit · ⌘A full screen", or "Esc to redo" while dragging.
+- The shutter sound now defaults to 50% volume.
+- **Fixed slow memory growth in the background.** Mouse activity elsewhere could build up thousands of unreleased event objects (several MB per minute) until you switched apps. A lightweight tidy-up now empties them every 2 seconds and returns freed memory to macOS. CPU stays at 0%.
+
 ## 1.1.0 — 2026-10-17
 
 - **Editor:** ⌃⇧⌘X (or menu → Edit Last Capture…) opens the latest capture with crop, arrow, box, circle, text and highlight tools, 7 colours, and undo/redo.

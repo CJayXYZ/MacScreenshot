@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Shared
 
 enum Links {
     static let repo = URL(string: "https://github.com/CJayXYZ/MacScreenshot")!
@@ -37,6 +38,10 @@ final class HelpWindowController {
             window.isReleasedWhenClosed = false
             window.center()
             self.window = window
+            Memory.releaseOnClose(window) { [weak self] in
+                self?.window?.contentViewController = nil
+                self?.window = nil
+            }
         }
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
