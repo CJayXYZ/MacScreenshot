@@ -7,11 +7,56 @@ enum OverlayResult {
     case image(CGImage, region: CGRect)
 }
 
-final class OverlayWindow: NSWindow {
+/// A non-activating panel: it takes keyboard and mouse input even when macOS keeps another
+/// app frontmost (since macOS 14, apps can't always force themselves forward).
+final class OverlayWindow: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
     // Borderless windows must still cover the menu bar.
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
+}
+
+/// A large, high-contrast "+" cursor (about twice the system crosshair) so it's obvious
+/// screenshot mode is on. White arms with a dark outline show on any background; the
+/// gap in the middle keeps the exact target pixel visible.
+enum CaptureCursor {
+    static let shared: NSCursor = {
+        let side: CGFloat = 36, arm: CGFloat = 16, gap: CGFloat = 4
+        let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { _ in
+            let c = side / 2
+            let path = NSBezierPath()
+            for (dx, dy) in [(1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0)] as [(CGFloat, CGFloat)] {
+                path.move(to: NSPoint(x: c + dx * gap, y: c + dy * gap))
+                path.line(to: NSPoint(x: c + dx * arm, y: c + dy * arm))
+            }
+            path.lineCapStyle = .round
+            path.lineWidth = 4.5
+            NSColor.black.withAlphaComponent(0.75).setStroke()
+            path.stroke()
+            path.lineWidth = 2
+            NSColor.white.setStroke()
+            path.stroke()
+            return true
+        }
+        return NSCursor(image: image, hotSpot: NSPoint(x: side / 2, y: side / 2))
+    }()
+
+    static func set() { shared.set() }
+}
+
+/// Lets this app set the cursor while another app is frontmost. Undocumented WindowServer
+/// property, used by many screenshot and window-management tools; without it the frontmost
+/// app's arrow cursor can win over our crosshair.
+enum BackgroundCursor {
+    private typealias Connection = Int32
+    @_silgen_name("_CGSDefaultConnection") private static func defaultConnection() -> Connection
+    @_silgen_name("CGSSetConnectionProperty")
+    private static func setProperty(_ cid: Connection, _ target: Connection, _ key: CFString, _ value: CFTypeRef) -> CGError
+
+    static func enable() {
+        let cid = defaultConnection()
+        _ = setProperty(cid, cid, "SetsCursorInBackground" as CFString, kCFBooleanTrue)
+    }
 }
 
 /// Owns the full-screen window that shows the frozen frame. Everything it holds
@@ -20,7 +65,10 @@ final class OverlayController {
     private var window: OverlayWindow?
 
     init(screen: NSScreen, image: CGImage, onFinish: @escaping (OverlayResult) -> Void) {
-        let window = OverlayWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
+        let window = OverlayWindow(contentRect: screen.frame, styleMask: [.borderless, .nonactivatingPanel],
+                                   backing: .buffered, defer: false)
+        window.becomesKeyOnlyIfNeeded = false
+        window.hidesOnDeactivate = false
         window.setFrame(screen.frame, display: false)
         window.level = .screenSaver
         window.isOpaque = true
@@ -37,14 +85,18 @@ final class OverlayController {
 
     func show() {
         guard let window, let view = window.contentView as? OverlayView else { return }
-        window.makeKeyAndOrderFront(nil)
+        BackgroundCursor.enable()
         NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(view)
         view.showLoupeAtMouse()
-        NSCursor.crosshair.set()
+        CaptureCursor.set()
+        // Re-assert once the window server has finished ordering the panel in.
+        DispatchQueue.main.async { CaptureCursor.set() }
     }
 
     func close() {
+        NSCursor.arrow.set()
         window?.orderOut(nil)
         window?.contentView = nil
         window = nil
@@ -267,15 +319,16 @@ final class OverlayView: NSView {
                                        owner: self, userInfo: nil))
     }
 
-    override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
-    override func cursorUpdate(with event: NSEvent) { NSCursor.crosshair.set() }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: CaptureCursor.shared) }
+    override func cursorUpdate(with event: NSEvent) { CaptureCursor.set() }
 
     override func mouseMoved(with event: NSEvent) {
-        NSCursor.crosshair.set()
+        CaptureCursor.set()
         updateLoupe(at: convert(event.locationInWindow, from: nil))
     }
 
     override func mouseDown(with event: NSEvent) {
+        CaptureCursor.set()
         let p = clamp(convert(event.locationInWindow, from: nil))
         ignoreUntilMouseUp = false
         start = p
@@ -285,6 +338,7 @@ final class OverlayView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
+        CaptureCursor.set()
         let p = clamp(convert(event.locationInWindow, from: nil))
         guard !ignoreUntilMouseUp, start != nil else { updateLoupe(at: p); return }
         current = p

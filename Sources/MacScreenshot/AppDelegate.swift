@@ -10,6 +10,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
     private var busy = false
     private lazy var help = HelpWindowController { [weak self] in self?.popUpMenuAtMouse() }
     private lazy var shortcutsWindow = ShortcutsWindowController(store: self)
+    private lazy var editor: EditorWindowController = {
+        let editor = EditorWindowController()
+        editor.onSaved = { [weak self] url, png in self?.editSaved(url, png: png) }
+        return editor
+    }()
+    private var editItem: NSMenuItem!
     private var captureItem: NSMenuItem!
 
     private var lastRegionItem: NSMenuItem!
@@ -85,12 +91,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
     @discardableResult
     private func register(_ action: ShortcutAction, _ shortcut: Shortcut) -> Bool {
         hotKeys[action] = nil // unregister the old one first
-        let id: UInt32 = action == .capture ? 1 : 2
+        let id = action.hotKeyID
         let hotKey = HotKey(id: id, keyCode: shortcut.keyCode, modifiers: shortcut.carbonModifiers) { [weak self] in
             MainActor.assumeIsolated {
                 switch action {
                 case .capture: self?.startCapture()
                 case .lastRegion: self?.captureLastRegion()
+                case .editLast: self?.editLastCapture()
                 }
             }
         }
@@ -127,7 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
     }
 
     private func updateMenuShortcuts() {
-        for (item, action) in [(captureItem, ShortcutAction.capture), (lastRegionItem, .lastRegion)] {
+        for (item, action) in [(captureItem, ShortcutAction.capture), (lastRegionItem, .lastRegion), (editItem, .editLast)] {
             let shortcut = Settings.shortcut(for: action)
             item?.keyEquivalent = shortcut.menuKeyEquivalent
             item?.keyEquivalentModifierMask = shortcut.menuKeyEquivalent.isEmpty ? [] : shortcut.flags
@@ -227,6 +234,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
     private func completeSave(_ outcome: Result<(url: URL, png: Data), Error>) {
         do {
             let saved = try outcome.get()
+            Settings.lastCapturePath = saved.url.path
             try Saver.copyToClipboard(saved.png)
             playShutter()
         } catch {
@@ -285,6 +293,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
         menu.addItem(captureItem)
         lastRegionItem = NSMenuItem(title: "Capture Last Region", action: #selector(captureLastRegion), keyEquivalent: "")
         menu.addItem(lastRegionItem)
+        editItem = NSMenuItem(title: "Edit Last Capture…", action: #selector(editLastCapture), keyEquivalent: "")
+        menu.addItem(editItem)
         menu.addItem(NSMenuItem(title: "Keyboard Shortcuts…", action: #selector(showShortcuts), keyEquivalent: ""))
         updateMenuShortcuts()
         menu.addItem(.separator())
@@ -364,6 +374,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         lastRegionItem.isEnabled = Settings.lastRegion != nil
+        editItem.isEnabled = Settings.lastCapturePath != nil
 
         let isJPEG = Settings.format == .jpeg
         pngItem.state = isJPEG ? .off : .on
@@ -434,6 +445,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
 
     @objc private func showHelp() { help.show() }
     @objc private func showShortcuts() { shortcutsWindow.show() }
+
+    /// Opens the most recent capture in the editor.
+    @objc func editLastCapture() {
+        guard !busy else { return }
+        guard let path = Settings.lastCapturePath else {
+            showAlert("Nothing to edit yet", "Take a screenshot with \(Settings.shortcut(for: .capture).display) first.")
+            return
+        }
+        guard FileManager.default.fileExists(atPath: path) else {
+            showAlert("Last capture not found", "\((path as NSString).lastPathComponent) was moved or deleted.")
+            return
+        }
+        do {
+            try editor.open(URL(fileURLWithPath: path))
+        } catch {
+            showAlert("Couldn't open the capture", error.localizedDescription)
+        }
+    }
+
+    /// Save and Replace both end here: clipboard, shutter, and the edit becomes the "last capture".
+    private func editSaved(_ url: URL, png: Data) {
+        Settings.lastCapturePath = url.path
+        do {
+            try Saver.copyToClipboard(png)
+            playShutter()
+        } catch {
+            showAlert("Saved, but not copied", error.localizedDescription)
+        }
+    }
     @objc private func sendFeedback() { NSWorkspace.shared.open(Links.feedback) }
     @objc private func openDonation(_ sender: NSMenuItem) {
         let options = Links.donations

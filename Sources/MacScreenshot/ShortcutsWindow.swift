@@ -2,12 +2,13 @@ import AppKit
 import SwiftUI
 
 enum ShortcutAction: CaseIterable {
-    case capture, lastRegion
+    case capture, lastRegion, editLast
 
     var title: String {
         switch self {
         case .capture: return "Capture an area"
         case .lastRegion: return "Capture last region"
+        case .editLast: return "Edit last capture"
         }
     }
 
@@ -15,6 +16,16 @@ enum ShortcutAction: CaseIterable {
         switch self {
         case .capture: return .captureDefault
         case .lastRegion: return .lastRegionDefault
+        case .editLast: return .editLastDefault
+        }
+    }
+
+    /// Carbon hotkey id; must be unique per action.
+    var hotKeyID: UInt32 {
+        switch self {
+        case .capture: return 1
+        case .lastRegion: return 2
+        case .editLast: return 3
         }
     }
 }

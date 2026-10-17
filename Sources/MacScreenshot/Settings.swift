@@ -58,7 +58,17 @@ enum Settings {
     }
 
     private static func key(for action: ShortcutAction) -> String {
-        action == .capture ? "shortcut.capture" : "shortcut.lastRegion"
+        switch action {
+        case .capture: return "shortcut.capture"
+        case .lastRegion: return "shortcut.lastRegion"
+        case .editLast: return "shortcut.editLast"
+        }
+    }
+
+    /// The most recently saved capture (or edit), opened by "Edit Last Capture".
+    static var lastCapturePath: String? {
+        get { defaults.string(forKey: "lastCapturePath") }
+        set { defaults.set(newValue, forKey: "lastCapturePath") }
     }
 
     static var lastRegion: Region? {

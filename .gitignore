@@ -3,3 +3,4 @@ build/
 .DS_Store
 # personal notes
 ask
+.vscode/

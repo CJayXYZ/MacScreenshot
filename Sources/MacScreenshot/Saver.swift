@@ -24,17 +24,7 @@ enum Saver {
     /// Returns the saved file and the PNG data for the clipboard.
     static func write(_ image: CGImage, scale: CGFloat, format: ImageFormat, quality: Int,
                       info: WindowInfo, date: Date) throws -> (url: URL, png: Data) {
-        let dpi = 72 * scale
-        guard let png = encode(image, as: .png, quality: nil, dpi: dpi) else { throw CaptureError.encodeFailed }
-        let fileData: Data
-        if format == .png {
-            fileData = png
-        } else {
-            guard let jpeg = encode(image, as: .jpeg, quality: Double(quality) / 100, dpi: dpi) else {
-                throw CaptureError.encodeFailed
-            }
-            fileData = jpeg
-        }
+        let (fileData, png) = try encodeForFile(image, scale: scale, format: format, quality: quality)
 
         let folder = folder()
         do {
@@ -46,6 +36,31 @@ enum Saver {
         } catch {
             throw CaptureError.writeFailed(error.localizedDescription)
         }
+    }
+
+    /// Writes an edited image to a specific file (a new "-edited" copy, or over the original).
+    /// Returns the PNG data for the clipboard.
+    static func write(_ image: CGImage, to url: URL, scale: CGFloat, format: ImageFormat, quality: Int,
+                      replacing: Bool) throws -> Data {
+        let (fileData, png) = try encodeForFile(image, scale: scale, format: format, quality: quality)
+        do {
+            try fileData.write(to: url, options: replacing ? .atomic : .withoutOverwriting)
+            return png
+        } catch {
+            throw CaptureError.writeFailed(error.localizedDescription)
+        }
+    }
+
+    /// The file's bytes in the chosen format, plus PNG for the clipboard (the same data when saving PNG).
+    private static func encodeForFile(_ image: CGImage, scale: CGFloat, format: ImageFormat,
+                                      quality: Int) throws -> (file: Data, png: Data) {
+        let dpi = 72 * scale
+        guard let png = encode(image, as: .png, quality: nil, dpi: dpi) else { throw CaptureError.encodeFailed }
+        if format == .png { return (png, png) }
+        guard let jpeg = encode(image, as: .jpeg, quality: Double(quality) / 100, dpi: dpi) else {
+            throw CaptureError.encodeFailed
+        }
+        return (jpeg, png)
     }
 
     /// Puts the PNG on the clipboard. Main thread only.

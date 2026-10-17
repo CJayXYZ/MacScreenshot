@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 — 2026-10-17
+
+- **Editor:** ⌃⇧⌘X (or menu → Edit Last Capture…) opens the latest capture with crop, arrow, box, circle, text and highlight tools, 7 colours, and undo/redo.
+- Line thickness (thin / medium / thick) for arrows, boxes and circles; text size (S/M/L/XL) and weight (regular / bold / heavy).
+- **Save** keeps the original and adds an "-edited" copy; **Replace** overwrites the original. Both copy to the clipboard.
+- Bigger, high-contrast **+** cursor while capturing, so it's clear screenshot mode is on.
+- The capture cursor and keyboard now work even when macOS keeps another app in front.
+
 ## 1.0.0 — 2026-10-17
 
 First public release.

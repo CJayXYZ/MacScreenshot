@@ -129,3 +129,29 @@ How it's kept low and tracked:
 4. ~~File name~~ — decided: `screenshot-date_time-app-title` (see File naming).
 5. **Feedback:** shutter sound on success, OK? Also a small thumbnail toast in the corner, or nothing?
 6. ~~Auto restart~~ — confirmed: start at login + relaunch on crash.
+
+## 8. Editor (v1.1.0)
+
+**⌃⇧⌘X** (menu: Edit Last Capture…) opens the most recent capture in a simple editor. Quick captures stay exactly as fast as before; editing only happens when you ask for it.
+
+| Tool | Key | How it works |
+| --- | --- | --- |
+| Crop | C | Drag a rectangle; the image is trimmed to it on release |
+| Arrow | A | Drag from tail to tip |
+| Box | B | Drag a rectangle outline |
+| Circle | O | Drag an oval / circle outline |
+| Text | T | Click, type, press Return; size S / M / L / XL, weight Regular / Bold / Heavy |
+| Highlight | H | Drag over text; semi-transparent marker colour |
+
+- **Colours:** red (default), orange, yellow, green, blue, black, white.
+- **Thickness:** Thin / Medium (default) / Thick for arrows, boxes and circles.
+- The toolbar shows only the options for the current tool (thickness for shapes; size and weight for text).
+- **Undo / Redo:** ⌘Z / ⇧⌘Z (up to 30 steps), also toolbar buttons.
+- **Save** (⌘S or Return): keeps the original, writes `<original name>-edited.<ext>` next to it, copies to clipboard, closes.
+- **Replace:** overwrites the original file, copies to clipboard, closes.
+- **ⓘ** explains the two buttons; **both always copy the image to the clipboard.**
+- The saved file keeps the original's format (PNG/JPEG) and resolution; the clipboard always gets PNG.
+- Closing with unsaved edits asks "Discard edits?". Esc closes.
+- If there's no capture yet, or the file was moved/deleted, an alert says so.
+- The shortcut is changeable in Keyboard Shortcuts like the others.
+- Memory: the editor loads only while open and frees the image and undo history on close.

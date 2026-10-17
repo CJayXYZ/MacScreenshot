@@ -56,6 +56,7 @@ private struct HelpView: View {
         ("Esc", "While dragging: clear the selection and drag again"),
         ("Esc Esc", "Back to the live screen, nothing saved"),
         (Settings.shortcut(for: .lastRegion).display, "Capture the same area as last time, instantly"),
+        (Settings.shortcut(for: .editLast).display, "Edit the last capture: crop, arrow, box, circle, text, highlight"),
     ]
 
     var body: some View {
