@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2 — 2026-10-17
+
+- Spotlight (⌘Space) now finds MacScreenshot by "mac", "screen", "shot", "screenshot", "capture" or "snip". The app adds these search keywords to itself when it starts.
+
 ## 1.1.1 — 2026-10-17
 
 - The editor is now **MacScreenshot Editor**, a separate app inside MacScreenshot.app. It runs in its own process with its own name in Activity Monitor and its own Dock icon while open. Closing, crashing or force-quitting it never affects capture, and it frees all its memory when it quits.

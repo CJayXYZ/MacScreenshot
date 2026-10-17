@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Shortc
         buildMenu()
         registerHotKeys()
         startMemoryJanitor()
+        SpotlightKeywords.apply()
 
         // Opening the app again while it runs (Finder, Spotlight, Terminal) brings back its controls.
         DistributedNotificationCenter.default().addObserver(forName: LaunchManager.reopenNotification,
